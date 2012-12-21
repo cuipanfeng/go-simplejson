@@ -110,3 +110,6 @@ func (j *Json) String() (string, error)
 func (j *Json) UnmarshalJSON(p []byte) error
     Implements the json.Unmarshaler interface.
 ```
+
+增加了MustBool()
+增加了ParseFile()
