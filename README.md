@@ -9,7 +9,7 @@ a Go package to interact with arbitrary JSON
 由于原作者在github中将项目命名为：go-simplejson，而包名是：simplejson。
 所以，如果通过go get方式下载的话，建议如下方式使用：
 
-    import simplejson github.com/bitly/go-simplejson
+    import simplejson github.com/polaris1119/go-simplejson
 
 个人更建议直接 ```git clone https://github.com/polaris1119/go-simplejson simplejson```然后可以直接```import simplejson```使用
 
