@@ -1,44 +1,65 @@
 package simplejson
 
 import (
-	"encoding/json"
-	"errors"
-	"log"
+    "bytes"
+    "encoding/json"
+    "errors"
+    "io/ioutil"
+    "log"
+    "strings"
 )
 
 // returns the current implementation version
 func Version() string {
-	return "0.4.1"
+    return "0.5"
 }
 
 type Json struct {
-	data interface{}
+    data interface{}
+}
+
+// 解析json文件，过滤掉注释（只支持注释在单独一行，以"//"注释）
+func ParseFile(filename string) (*Json, error) {
+    stream, err := ioutil.ReadFile(filename)
+    if err != nil {
+        return nil, err
+    }
+    content := string(stream)
+    var builder bytes.Buffer
+    lines := strings.Split(content, "\n")
+    for _, line := range lines {
+        if strings.HasPrefix(strings.TrimSpace(line), "//") {
+            continue
+        }
+        builder.WriteString(line)
+    }
+    return NewJson(builder.Bytes())
 }
 
 // NewJson returns a pointer to a new `Json` object
 // after unmarshaling `body` bytes
 func NewJson(body []byte) (*Json, error) {
-	j := new(Json)
-	err := j.UnmarshalJSON(body)
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+    j := new(Json)
+    err := j.UnmarshalJSON(body)
+    if err != nil {
+        return nil, err
+    }
+    return j, nil
 }
 
 // Encode returns its marshaled data as `[]byte`
 func (j *Json) Encode() ([]byte, error) {
-	return j.MarshalJSON()
+    return j.MarshalJSON()
 }
 
 // Implements the json.Unmarshaler interface.
 func (j *Json) UnmarshalJSON(p []byte) error {
-	return json.Unmarshal(p, &j.data)
+    return json.Unmarshal(p, &j.data)
 }
 
 // Implements the json.Marshaler interface.
 func (j *Json) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&j.data)
+    return json.Marshal(&j.data)
 }
 
 // Get returns a pointer to a new `Json` object 
@@ -47,13 +68,28 @@ func (j *Json) MarshalJSON() ([]byte, error) {
 // useful for chaining operations (to traverse a nested JSON):
 //    js.Get("top_level").Get("dict").Get("value").Int()
 func (j *Json) Get(key string) *Json {
-	m, err := j.Map()
-	if err == nil {
-		if val, ok := m[key]; ok {
-			return &Json{val}
-		}
-	}
-	return &Json{nil}
+    m, err := j.Map()
+    if err == nil {
+        if val, ok := m[key]; ok {
+            return &Json{val}
+        }
+    }
+    return &Json{nil}
+}
+
+// GetStringSlice returns slice of string.
+func (j *Json) GetStringSlice(key string) []string {
+    currentJson := j.Get(key)
+    a, err := currentJson.Array()
+    stringSlice := make([]string, len(a))
+    if err == nil {
+        for i, v := range a {
+            if tmp, ok := v.(string); ok {
+                stringSlice[i] = tmp
+            }
+        }
+    }
+    return stringSlice
 }
 
 // GetIndex resturns a pointer to a new `Json` object
@@ -63,13 +99,13 @@ func (j *Json) Get(key string) *Json {
 // a json array instead of a json object:
 //    js.Get("top_level").Get("array").GetIndex(1).Get("key").Int()
 func (j *Json) GetIndex(index int) *Json {
-  a, err := j.Array()
-  if err == nil {
-    if len(a) > index {
-      return &Json{a[index]}
+    a, err := j.Array()
+    if err == nil {
+        if len(a) > index {
+            return &Json{a[index]}
+        }
     }
-  }
-  return &Json{nil}
+    return &Json{nil}
 }
 
 // CheckGet returns a pointer to a new `Json` object and
@@ -80,79 +116,79 @@ func (j *Json) GetIndex(index int) *Json {
 //        log.Println(data)
 //    }
 func (j *Json) CheckGet(key string) (*Json, bool) {
-	m, err := j.Map()
-	if err == nil {
-		if val, ok := m[key]; ok {
-			return &Json{val}, true
-		}
-	}
-	return nil, false
+    m, err := j.Map()
+    if err == nil {
+        if val, ok := m[key]; ok {
+            return &Json{val}, true
+        }
+    }
+    return nil, false
 }
 
 // Map type asserts to `map`
 func (j *Json) Map() (map[string]interface{}, error) {
-	if m, ok := (j.data).(map[string]interface{}); ok {
-		return m, nil
-	}
-	return nil, errors.New("type assertion to map[string]interface{} failed")
+    if m, ok := (j.data).(map[string]interface{}); ok {
+        return m, nil
+    }
+    return nil, errors.New("type assertion to map[string]interface{} failed")
 }
 
 // Array type asserts to an `array`
 func (j *Json) Array() ([]interface{}, error) {
-	if a, ok := (j.data).([]interface{}); ok {
-		return a, nil
-	}
-	return nil, errors.New("type assertion to []interface{} failed")
+    if a, ok := (j.data).([]interface{}); ok {
+        return a, nil
+    }
+    return nil, errors.New("type assertion to []interface{} failed")
 }
 
 // Bool type asserts to `bool`
 func (j *Json) Bool() (bool, error) {
-	if s, ok := (j.data).(bool); ok {
-		return s, nil
-	}
-	return false, errors.New("type assertion to bool failed")
+    if s, ok := (j.data).(bool); ok {
+        return s, nil
+    }
+    return false, errors.New("type assertion to bool failed")
 }
 
 // String type asserts to `string`
 func (j *Json) String() (string, error) {
-	if s, ok := (j.data).(string); ok {
-		return s, nil
-	}
-	return "", errors.New("type assertion to string failed")
+    if s, ok := (j.data).(string); ok {
+        return s, nil
+    }
+    return "", errors.New("type assertion to string failed")
 }
 
 // Float64 type asserts to `float64`
 func (j *Json) Float64() (float64, error) {
-	if i, ok := (j.data).(float64); ok {
-		return i, nil
-	}
-	return -1, errors.New("type assertion to float64 failed")
+    if i, ok := (j.data).(float64); ok {
+        return i, nil
+    }
+    return -1, errors.New("type assertion to float64 failed")
 }
 
 // Int type asserts to `float64` then converts to `int`
 func (j *Json) Int() (int, error) {
-	if f, ok := (j.data).(float64); ok {
-		return int(f), nil
-	}
+    if f, ok := (j.data).(float64); ok {
+        return int(f), nil
+    }
 
-	return -1, errors.New("type assertion to float64 failed")
+    return -1, errors.New("type assertion to float64 failed")
 }
 
 // Int type asserts to `float64` then converts to `int64`
 func (j *Json) Int64() (int64, error) {
-	if f, ok := (j.data).(float64); ok {
-		return int64(f), nil
-	}
+    if f, ok := (j.data).(float64); ok {
+        return int64(f), nil
+    }
 
-	return -1, errors.New("type assertion to float64 failed")
+    return -1, errors.New("type assertion to float64 failed")
 }
 
 // Bytes type asserts to `[]byte`
 func (j *Json) Bytes() ([]byte, error) {
-	if s, ok := (j.data).(string); ok {
-		return []byte(s), nil
-	}
-	return nil, errors.New("type assertion to []byte failed")
+    if s, ok := (j.data).(string); ok {
+        return []byte(s), nil
+    }
+    return nil, errors.New("type assertion to []byte failed")
 }
 
 // MustString guarantees the return of a `string` (with optional default)
@@ -160,23 +196,23 @@ func (j *Json) Bytes() ([]byte, error) {
 // useful when you explicitly want a `string` in a single value return context:
 //     myFunc(js.Get("param1").MustString(), js.Get("optional_param").MustString("my_default"))
 func (j *Json) MustString(args ...string) string {
-	var def string
+    var def string
 
-	switch len(args) {
-	case 0:
-		break
-	case 1:
-		def = args[0]
-	default:
-		log.Panicf("MustString() received too many arguments %d", len(args))
-	}
+    switch len(args) {
+    case 0:
+        break
+    case 1:
+        def = args[0]
+    default:
+        log.Panicf("MustString() received too many arguments %d", len(args))
+    }
 
-	s, err := j.String()
-	if err == nil {
-		return s
-	}
+    s, err := j.String()
+    if err == nil {
+        return s
+    }
 
-	return def
+    return def
 }
 
 // MustInt guarantees the return of an `int` (with optional default)
@@ -184,23 +220,47 @@ func (j *Json) MustString(args ...string) string {
 // useful when you explicitly want an `int` in a single value return context:
 //     myFunc(js.Get("param1").MustInt(), js.Get("optional_param").MustInt(5150))
 func (j *Json) MustInt(args ...int) int {
-	var def int
+    var def int
 
-	switch len(args) {
-	case 0:
-		break
-	case 1:
-		def = args[0]
-	default:
-		log.Panicf("MustInt() received too many arguments %d", len(args))
-	}
+    switch len(args) {
+    case 0:
+        break
+    case 1:
+        def = args[0]
+    default:
+        log.Panicf("MustInt() received too many arguments %d", len(args))
+    }
 
-	i, err := j.Int()
-	if err == nil {
-		return i
-	}
+    i, err := j.Int()
+    if err == nil {
+        return i
+    }
 
-	return def
+    return def
+}
+
+// MustBool guarantees the return of an `bool` (with optional default)
+//
+// useful when you explicitly want an `bool` in a single value return context:
+//     myFunc(js.Get("param1").MustBool(), js.Get("optional_param").MustBool(false))
+func (j *Json) MustBool(args ...bool) bool {
+    var def bool
+
+    switch len(args) {
+    case 0:
+        break
+    case 1:
+        def = args[0]
+    default:
+        log.Panicf("MustBool() received too many arguments %d", len(args))
+    }
+
+    i, err := j.Bool()
+    if err == nil {
+        return i
+    }
+
+    return def
 }
 
 // MustFloat64 guarantees the return of a `float64` (with optional default)
@@ -208,21 +268,21 @@ func (j *Json) MustInt(args ...int) int {
 // useful when you explicitly want a `float64` in a single value return context:
 //     myFunc(js.Get("param1").MustFloat64(), js.Get("optional_param").MustFloat64(5.150))
 func (j *Json) MustFloat64(args ...float64) float64 {
-	var def float64
+    var def float64
 
-	switch len(args) {
-	case 0:
-		break
-	case 1:
-		def = args[0]
-	default:
-		log.Panicf("MustFloat64() received too many arguments %d", len(args))
-	}
+    switch len(args) {
+    case 0:
+        break
+    case 1:
+        def = args[0]
+    default:
+        log.Panicf("MustFloat64() received too many arguments %d", len(args))
+    }
 
-	i, err := j.Float64()
-	if err == nil {
-		return i
-	}
+    i, err := j.Float64()
+    if err == nil {
+        return i
+    }
 
-	return def
+    return def
 }
