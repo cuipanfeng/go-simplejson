@@ -28,7 +28,8 @@ func ParseFile(filename string) (*Json, error) {
     var builder bytes.Buffer
     lines := strings.Split(content, "\n")
     for _, line := range lines {
-        if strings.HasPrefix(strings.TrimSpace(line), "//") {
+        line = strings.TrimSpace(line)
+        if line == "" || strings.HasPrefix(line, "//") {
             continue
         }
         builder.WriteString(line)
