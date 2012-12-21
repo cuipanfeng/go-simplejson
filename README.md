@@ -111,5 +111,4 @@ func (j *Json) UnmarshalJSON(p []byte) error
     Implements the json.Unmarshaler interface.
 ```
 
-增加了MustBool()
-增加了ParseFile()
+增加了MustBool()、ParseFile()
